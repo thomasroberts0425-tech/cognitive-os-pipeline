@@ -1,0 +1,12 @@
+# Secrets — NEVER commit
+auth/
+*.key
+*.env
+*.secret
+
+# Local runtime data (may contain personal info)
+cache/
+
+# Python
+__pycache__/
+*.pyc
