@@ -98,23 +98,5 @@ class TestPlaceDates(unittest.TestCase):
             self.assertLessEqual(s["date"], "2026-07-04")
 
 
-class TestPlaceDates(unittest.TestCase):
-    def test_normal_mode_ends_day_before_exam(self):
-        sessions = bsg.build_schedule(["M07", "M08", "M09"], per_session=1)  # 9 sessions
-        crunch = bsg.place_dates(sessions, exam=date(2026, 8, 1), today=date(2026, 7, 1))
-        self.assertFalse(crunch)
-        self.assertEqual(sessions[-1]["date"], "2026-07-31")   # exam - 1
-        self.assertTrue(all("date" in s for s in sessions))
-
-    def test_crunch_when_not_enough_runway(self):
-        sessions = bsg.build_schedule(["M07", "M08", "M09"], per_session=1)
-        crunch = bsg.place_dates(sessions, exam=date(2026, 7, 5), today=date(2026, 7, 1))
-        self.assertTrue(crunch)
-        # everything fits within [today, exam-1]
-        for s in sessions:
-            self.assertGreaterEqual(s["date"], "2026-07-01")
-            self.assertLessEqual(s["date"], "2026-07-04")
-
-
 if __name__ == "__main__":
     unittest.main()
