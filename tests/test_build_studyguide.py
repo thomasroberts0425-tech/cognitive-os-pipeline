@@ -114,5 +114,28 @@ class TestRenderSchedule(unittest.TestCase):
         self.assertIn("crunch", md.lower())
 
 
+class TestFlashcards(unittest.TestCase):
+    ARTIFACT = (
+        "## Why-It's-True Prompts\n- Why does BFOR apply?\n\n"
+        "## Flashcards\n"
+        "- BFOR :: Bona fide occupational requirement; a defence to discrimination\n"
+        "Meiorin test :: 3-step test for a BFOR\n\n"
+        "## Practice MCQs\n- not a card :: should be ignored\n")
+
+    def test_parse_only_flashcards_section(self):
+        cards = bsg.parse_flashcards(self.ARTIFACT)
+        self.assertEqual(cards, [
+            ("BFOR", "Bona fide occupational requirement; a defence to discrimination"),
+            ("Meiorin test", "3-step test for a BFOR")])
+
+    def test_write_quizlet_tab_and_sanitises(self):
+        import tempfile
+        out = Path(tempfile.mkdtemp()) / "q.txt"
+        n = bsg.write_quizlet([("A\tB", "line1\nline2")], out)
+        self.assertEqual(n, 1)
+        content = out.read_text()
+        self.assertEqual(content.strip(), "A B\tline1 line2")
+
+
 if __name__ == "__main__":
     unittest.main()

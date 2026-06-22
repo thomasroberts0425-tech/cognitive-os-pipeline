@@ -175,3 +175,30 @@ def render_schedule_md(sessions, dated: bool, crunch: bool) -> str:
         datecol = f" {s.get('date','')} |" if dated else ""
         lines.append(f"| {s['ordinal']} |{datecol} {focus} | {acts} |")
     return "\n".join(lines) + "\n"
+
+
+CARD_RE = re.compile(r"^\s*(?:[-*]\s+)?(.+?)\s*::\s*(.+?)\s*$")
+
+
+def parse_flashcards(text: str):
+    """Extract Term :: Definition pairs under the '## Flashcards' heading only."""
+    cards, in_section = [], False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            in_section = line.strip() == "## Flashcards"
+            continue
+        if in_section:
+            m = CARD_RE.match(line)
+            if m:
+                cards.append((m.group(1), m.group(2)))
+    return cards
+
+
+def _clean(field: str) -> str:
+    return field.replace("\t", " ").replace("\n", " ").strip()
+
+
+def write_quizlet(cards, out_path: Path) -> int:
+    rows = [f"{_clean(t)}\t{_clean(d)}" for t, d in cards]
+    out_path.write_text("\n".join(rows) + ("\n" if rows else ""), encoding="utf-8")
+    return len(cards)
