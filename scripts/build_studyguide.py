@@ -119,3 +119,38 @@ def build_schedule(modules, per_session: int = 3):
             "passes": sorted({a["pass"] for a in chunk}),
         })
     return sessions
+
+
+def place_dates(sessions, exam: date, today: date) -> bool:
+    """Assign each session a calendar date. Returns True if crunch mode was used."""
+    last_day = exam - timedelta(days=1)
+    # Cumulative offset of each session from session 1 (gap of session 1 ignored).
+    cum, running = [], 0
+    for i, s in enumerate(sessions):
+        running += s["gap_days"] if i > 0 else 0
+        cum.append(running)
+    span = cum[-1] if cum else 0
+    start = last_day - timedelta(days=span)
+    available = (last_day - today).days      # max day-offset that fits from today
+
+    if start >= today:                       # normal: full gaps fit, anchor end at exam-1
+        for s, off in zip(sessions, cum):
+            s["date"] = (start + timedelta(days=off)).isoformat()
+        return False
+
+    # Full gaps overflow. Try compressing to 1 day per session and still anchor
+    # the last session at exam-1 (still "normal" — no crunch flag).
+    n = len(sessions)
+    if n - 1 <= available:                    # one day each fits in the window
+        for i, s in enumerate(sessions):
+            off = (n - 1) - i                 # days before exam-1
+            s["date"] = (last_day - timedelta(days=off)).isoformat()
+        return False
+
+    # Crunch: pack forward from today, gaps capped at 1 (then 0), clamp at exam-1.
+    cur = today
+    for i, s in enumerate(sessions):
+        if i > 0:
+            cur = min(cur + timedelta(days=1 if s["gap_days"] else 0), last_day)
+        s["date"] = max(cur, today).isoformat()
+    return True
