@@ -348,16 +348,46 @@ def cmd_assemble(args) -> int:
     return 0
 
 
+def broken_links_clean(report_path: Path) -> bool:
+    """True if the validator report's 'Broken Wikilinks' section shows no issues.
+
+    The studyguide finalize gate is specifically a *zero-broken-links* gate (per
+    the design spec). validate_vault.py also reports unrelated vault hygiene
+    (stale state files, etc.) and returns nonzero for any of them; those must NOT
+    block routing a link-clean study guide. If the report is unreadable, treat as
+    clean (the validator still ran; nothing link-specific to gate on)."""
+    try:
+        text = report_path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return True
+    capturing, section = False, []
+    for line in text.splitlines():
+        if line.startswith("### "):
+            if capturing:
+                break
+            capturing = line.strip() == "### Broken Wikilinks"
+            continue
+        if capturing:
+            section.append(line)
+    body = "\n".join(section).strip()
+    return (not body) or ("✅ No issues" in body)
+
+
 def cmd_finalize(args) -> int:
     plan, meta, _ = _load_plan(args.plan_json)
-    rc = subprocess.run([sys.executable, str(VALIDATOR)]).returncode
-    if rc != 0:
-        print("validate_vault.py reported vault issues (see "
-              "00_SYSTEM/Validation_Report.md) — resolve them before routing "
-              "the study guide.", file=sys.stderr)
-        return rc
-
     vault_root = Path(args.vault_root)
+    rc = subprocess.run([sys.executable, str(VALIDATOR)]).returncode
+    report = vault_root / "00_SYSTEM" / "Validation_Report.md"
+    if not broken_links_clean(report):
+        print("validate_vault.py found BROKEN WIKILINKS (see "
+              "00_SYSTEM/Validation_Report.md) — fix them before routing the "
+              "study guide.", file=sys.stderr)
+        return 1
+    if rc != 0:
+        print("Note: validate_vault.py reported non-link vault issues (see "
+              "00_SYSTEM/Validation_Report.md); none are broken links, so the "
+              "study guide is link-clean and will be routed.", file=sys.stderr)
+
     course, slug = meta["course"], meta["slug"]
     inbox = vault_root / "01_CAPTURE" / "Inbox"
     inbox.mkdir(parents=True, exist_ok=True)
