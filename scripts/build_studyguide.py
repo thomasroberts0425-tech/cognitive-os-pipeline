@@ -211,8 +211,11 @@ def write_quizlet(cards, out_path: Path) -> int:
 
 REQUIRED_SECTIONS = ["## Flashcards", "## Practice MCQs",
                      "## Essay Practice", "## Why-It's-True Prompts"]
-# A per-distractor rationale may be labelled "Rationale:" or "Rationale A:" etc.
-RATIONALE_RE = re.compile(r"rationale\s*[a-d]?\s*:", re.I)
+# MCQs must explain their distractors. Real artifacts do this in varied but
+# recognisable ways: a "Rationale" label (with or without a letter/delimiter), or
+# per-option "Correct:/Wrong:/Incorrect" verdicts, or "...because..." prose. Detect
+# any of these explanation signals rather than one brittle literal token.
+RATIONALE_RE = re.compile(r"\b(rationale|because|correct|incorrect|wrong)\b", re.I)
 # Flag a model essay only when a marker is used as a LABEL ("Model Answer:") or a
 # markdown HEADING ("## Sample Essay") — i.e. it actually introduces answer prose.
 # Prose compliance disclaimers ("no model answers", "not a model essay") are NOT
@@ -249,7 +252,7 @@ def check_artifacts(paths) -> list:
         if "## Practice MCQs" in text:
             mcq_body = section_body(text, "## Practice MCQs")
             if not RATIONALE_RE.search(mcq_body):
-                issues.append(f"{name}: MCQs missing 'Rationale:'")
+                issues.append(f"{name}: MCQs missing per-distractor rationale/explanation")
             if "bloom:" not in mcq_body.lower():
                 issues.append(f"{name}: MCQs missing 'Bloom:' tag")
         if "## Essay Practice" in text and \

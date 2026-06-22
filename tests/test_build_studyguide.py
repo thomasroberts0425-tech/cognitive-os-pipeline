@@ -176,6 +176,28 @@ class TestCheckArtifacts(unittest.TestCase):
             "## Essay Practice\nPrompt... Rubric: 10 pts\n")
         self.assertEqual(bsg.check_artifacts([self._write(art)]), [])
 
+    def test_per_option_verdict_style_rationale_accepted(self):
+        # M08-style: "- A. Correct: ...", "- B. Wrong: ..." (no literal "Rationale").
+        art = (
+            '---\nai_study_aid: true\n---\n'
+            "## Why-It's-True Prompts\n- Why?\n"
+            "## Flashcards\nA :: B\n"
+            "## Practice MCQs\n> Answer: C — Bloom: Apply\n"
+            "> - A. Wrong: not the failure point.\n> - C. Correct: classic Step 3 failure.\n"
+            "## Essay Practice\nPrompt... Rubric: 10 pts\n")
+        self.assertEqual(bsg.check_artifacts([self._write(art)]), [])
+
+    def test_mcq_with_no_explanation_is_flagged(self):
+        # Bare answer key + Bloom but zero distractor explanation must still fail.
+        art = (
+            '---\nai_study_aid: true\n---\n'
+            "## Why-It's-True Prompts\n- Why?\n"
+            "## Flashcards\nA :: B\n"
+            "## Practice MCQs\n1. Stem? A) x B) y C) z D) w\nAnswer: C Bloom: Apply\n"
+            "## Essay Practice\nPrompt... Rubric: 10 pts\n")
+        issues = bsg.check_artifacts([self._write(art)])
+        self.assertTrue(any("rationale/explanation" in i for i in issues))
+
     def test_compliance_disclaimer_not_flagged_as_model_essay(self):
         # A prose disclaimer ("no model answers") must NOT trip the banned-marker gate.
         art = (
