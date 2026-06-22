@@ -97,6 +97,12 @@ class TestPlaceDates(unittest.TestCase):
             self.assertGreaterEqual(s["date"], "2026-07-01")
             self.assertLessEqual(s["date"], "2026-07-04")
 
+    def test_exam_today_or_past_clamps_to_today_and_crunches(self):
+        sessions = bsg.build_schedule(["M07", "M08"], per_session=2)
+        crunch = bsg.place_dates(sessions, exam=date(2026, 7, 1), today=date(2026, 7, 1))
+        self.assertTrue(crunch)
+        self.assertTrue(all(s["date"] == "2026-07-01" for s in sessions))
+
 
 class TestRenderSchedule(unittest.TestCase):
     def test_ordinal_only_has_no_date_column(self):

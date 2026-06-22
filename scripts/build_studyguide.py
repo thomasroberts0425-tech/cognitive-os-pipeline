@@ -124,6 +124,10 @@ def build_schedule(modules, per_session: int = 3) -> list:
 
 def place_dates(sessions, exam: date, today: date) -> bool:
     """Assign each session a calendar date. Returns True if crunch mode was used."""
+    if exam <= today:                        # no runway: clamp all to today (crunch)
+        for s in sessions:
+            s["date"] = today.isoformat()
+        return True
     last_day = exam - timedelta(days=1)
     # Cumulative offset of each session from session 1 (gap of session 1 ignored).
     cum, running = [], 0
@@ -336,8 +340,9 @@ def cmd_finalize(args) -> int:
     plan, meta, _ = _load_plan(args.plan_json)
     rc = subprocess.run([sys.executable, str(VALIDATOR)]).returncode
     if rc != 0:
-        print("validate_vault.py reported issues — NOT writing insight brief; "
-              "fix broken links first.", file=sys.stderr)
+        print("validate_vault.py reported vault issues (see "
+              "00_SYSTEM/Validation_Report.md) — resolve them before routing "
+              "the study guide.", file=sys.stderr)
         return rc
 
     vault_root = Path(args.vault_root)
