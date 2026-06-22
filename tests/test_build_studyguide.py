@@ -288,5 +288,24 @@ class TestAssemble(unittest.TestCase):
         self.assertEqual(rc, 1)
 
 
+class TestBrokenLinksClean(unittest.TestCase):
+    def _report(self, broken_section):
+        import tempfile
+        p = Path(tempfile.mkdtemp()) / "Validation_Report.md"
+        p.write_text(
+            "# Report\n\n### Broken Wikilinks\n" + broken_section +
+            "\n### Stale State Files (>7 days)\n  - X_STATE.md — 32 days ago\n")
+        return p
+
+    def test_no_broken_links_is_clean(self):
+        self.assertTrue(bsg.broken_links_clean(self._report("✅ No issues\n")))
+
+    def test_broken_links_present_is_not_clean(self):
+        self.assertFalse(bsg.broken_links_clean(self._report("  - [[Missing Note]]\n")))
+
+    def test_missing_report_treated_as_clean(self):
+        self.assertTrue(bsg.broken_links_clean(Path("/no/such/report.md")))
+
+
 if __name__ == "__main__":
     unittest.main()
