@@ -15,6 +15,7 @@ Stdlib only (no PyYAML, no pip deps). Python 3.9+.
 import argparse
 import json
 import re
+import subprocess
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -105,7 +106,7 @@ def _gap(i: int) -> int:
     return GAP_PATTERN[i] if i < len(GAP_PATTERN) else GAP_PATTERN[-1]
 
 
-def build_schedule(modules, per_session: int = 3):
+def build_schedule(modules, per_session: int = 3) -> list:
     """Spaced + interleaved 3-pass schedule. See Interfaces for the contract."""
     activities = [{"module": m, "pass": p} for p in PASSES for m in modules]
     sessions = []
@@ -180,7 +181,7 @@ def render_schedule_md(sessions, dated: bool, crunch: bool) -> str:
 CARD_RE = re.compile(r"^\s*(?:[-*]\s+)?(.+?)\s*::\s*(.+?)\s*$")
 
 
-def parse_flashcards(text: str):
+def parse_flashcards(text: str) -> list:
     """Extract Term :: Definition pairs under the '## Flashcards' heading only."""
     cards, in_section = [], False
     for line in text.splitlines():
@@ -209,7 +210,21 @@ REQUIRED_SECTIONS = ["## Flashcards", "## Practice MCQs",
 BANNED_ESSAY = ("model answer", "model essay", "sample essay")
 
 
-def check_artifacts(paths):
+def section_body(text: str, heading: str) -> str:
+    """Return lines after a line == heading, up to the next '## ' line, or ''."""
+    lines = text.splitlines()
+    body, capturing = [], False
+    for line in lines:
+        if capturing:
+            if line.startswith("## "):
+                break
+            body.append(line)
+        elif line == heading:
+            capturing = True
+    return "\n".join(body)
+
+
+def check_artifacts(paths) -> list:
     """Validate per-module artifacts against the contract. Returns issue strings."""
     issues = []
     for p in paths:
@@ -220,11 +235,13 @@ def check_artifacts(paths):
             if sec not in text:
                 issues.append(f"{name}: missing section {sec}")
         if "## Practice MCQs" in text:
-            if "rationale:" not in low:
+            mcq_body = section_body(text, "## Practice MCQs").lower()
+            if "rationale:" not in mcq_body:
                 issues.append(f"{name}: MCQs missing 'Rationale:'")
-            if "bloom:" not in low:
+            if "bloom:" not in mcq_body:
                 issues.append(f"{name}: MCQs missing 'Bloom:' tag")
-        if "## Essay Practice" in text and "rubric:" not in low:
+        if "## Essay Practice" in text and \
+                "rubric:" not in section_body(text, "## Essay Practice").lower():
             issues.append(f"{name}: essay section missing 'Rubric:'")
         for banned in BANNED_ESSAY:
             if banned in low:
@@ -279,8 +296,6 @@ def cmd_plan(args) -> int:
     print(json.dumps(plan, indent=2))
     return 0
 
-
-import subprocess
 
 VALIDATOR = Path(__file__).resolve().parent / "validate_vault.py"
 

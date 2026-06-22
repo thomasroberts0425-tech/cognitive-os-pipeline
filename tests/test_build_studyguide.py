@@ -1,5 +1,5 @@
 # tests/test_build_studyguide.py
-import json, sys, unittest
+import contextlib, io, json, sys, unittest
 from datetime import date
 from pathlib import Path
 
@@ -187,7 +187,8 @@ class TestCmdPlan(unittest.TestCase):
         return argparse.Namespace(**d)
 
     def test_plan_writes_plan_json_and_schedule(self):
-        rc = bsg.cmd_plan(self._args())
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            rc = bsg.cmd_plan(self._args())
         self.assertEqual(rc, 0)
         sg = self.vdir / "StudyGuide-M07-M07"
         plan = json.loads((sg / "_plan.json").read_text())
@@ -195,6 +196,8 @@ class TestCmdPlan(unittest.TestCase):
         self.assertTrue(plan["briefs"][0]["cache_sources"])  # Ch21.txt mapped
         self.assertTrue((sg / "_schedule.md").exists())
         self.assertFalse(plan["meta"]["dated"])
+        printed = json.loads(buf.getvalue())  # stdout must be the plan JSON
+        self.assertEqual(printed["meta"]["slug"], plan["meta"]["slug"])
 
 
 class TestAssemble(unittest.TestCase):
@@ -217,7 +220,8 @@ class TestAssemble(unittest.TestCase):
         self.args = argparse.Namespace(plan_json=str(self.sg / "_plan.json"))
 
     def test_assemble_writes_flashcards_and_quizlet(self):
-        rc = bsg.cmd_assemble(self.args)
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            rc = bsg.cmd_assemble(self.args)
         self.assertEqual(rc, 0)
         self.assertTrue((self.vdir / "StudyGuide-M07-M07" /
                          "IRE430-M07-M07-Flashcards-quizlet.txt").exists())
@@ -229,7 +233,9 @@ class TestAssemble(unittest.TestCase):
         art = Path(json.loads(Path(self.args.plan_json).read_text())
                    ["briefs"][0]["output_path"])
         art.write_text("## Flashcards\nA :: B\n")  # missing sections + aid flag
-        self.assertEqual(bsg.cmd_assemble(self.args), 1)
+        with contextlib.redirect_stdout(io.StringIO()):
+            rc = bsg.cmd_assemble(self.args)
+        self.assertEqual(rc, 1)
 
 
 if __name__ == "__main__":
