@@ -278,3 +278,96 @@ def cmd_plan(args) -> int:
     (sg_dir / "_plan.json").write_text(json.dumps(plan, indent=2), encoding="utf-8")
     print(json.dumps(plan, indent=2))
     return 0
+
+
+import subprocess
+
+VALIDATOR = Path(__file__).resolve().parent / "validate_vault.py"
+
+
+def _load_plan(plan_json: str):
+    plan = json.loads(Path(plan_json).read_text(encoding="utf-8"))
+    return plan, plan["meta"], [Path(b["output_path"]) for b in plan["briefs"]]
+
+
+def cmd_assemble(args) -> int:
+    plan, meta, artifacts = _load_plan(args.plan_json)
+    existing = [p for p in artifacts if p.exists()]
+    issues = check_artifacts(existing)
+    if issues:
+        print("Artifact contract violations:\n  " + "\n  ".join(issues), file=sys.stderr)
+        return 1
+
+    cards = []
+    for p in existing:
+        cards.extend(parse_flashcards(p.read_text(encoding="utf-8", errors="ignore")))
+
+    sg = Path(meta["studyguide_dir"])
+    course, slug = meta["course"], meta["slug"]
+    vault_md = sg / f"{course}-{slug}-Flashcards.md"
+    vault_md.write_text(
+        f"---\ntitle: \"{course} {slug} Flashcards\"\nai_study_aid: true\n---\n\n"
+        f"# {course} {slug} — Flashcards\n\n"
+        "_One atomic fact per card. `Term :: Definition` doubles as the Obsidian "
+        "spaced-repetition format and the Quizlet export source._\n\n"
+        + "\n".join(f"{t} :: {d}" for t, d in cards) + "\n", encoding="utf-8")
+
+    n = write_quizlet(cards, sg / f"{course}-{slug}-Flashcards-quizlet.txt")
+    print(f"assembled {n} flashcards for {course} {slug}")
+    return 0
+
+
+def cmd_finalize(args) -> int:
+    plan, meta, _ = _load_plan(args.plan_json)
+    rc = subprocess.run([sys.executable, str(VALIDATOR)]).returncode
+    if rc != 0:
+        print("validate_vault.py reported issues — NOT writing insight brief; "
+              "fix broken links first.", file=sys.stderr)
+        return rc
+
+    vault_root = Path(args.vault_root)
+    course, slug = meta["course"], meta["slug"]
+    inbox = vault_root / "01_CAPTURE" / "Inbox"
+    inbox.mkdir(parents=True, exist_ok=True)
+    today = date.today().isoformat()
+    brief = inbox / f"{course}-studyguide-{today}.md"
+    brief.write_text(
+        f"---\ntitle: \"{course} study guide ready ({slug})\"\n"
+        f"ai_study_aid: true\nlast_updated: {today}\n---\n\n"
+        f"# {course} {slug} — Study guide ready\n\n"
+        f"- Master guide: `StudyGuide-{slug}/`\n"
+        f"- Flashcards exportable to Quizlet (tab-delimited .txt)\n"
+        f"- Scenario MCQs + IRAC essay practice in-vault (study aid only)\n",
+        encoding="utf-8")
+    print(f"finalize OK — insight brief at {brief}")
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Study Guide builder (Layer 4).")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    p = sub.add_parser("plan")
+    p.add_argument("--course", required=True)
+    p.add_argument("--range", required=True)
+    p.add_argument("--vault-dir", required=True, dest="vault_dir")
+    p.add_argument("--staging-root", default=str(Path.home() / "canvas_downloads"),
+                   dest="staging_root")
+    p.add_argument("--exam", default=None)
+    p.set_defaults(func=cmd_plan)
+
+    a = sub.add_parser("assemble")
+    a.add_argument("--plan-json", required=True, dest="plan_json")
+    a.set_defaults(func=cmd_assemble)
+
+    f = sub.add_parser("finalize")
+    f.add_argument("--plan-json", required=True, dest="plan_json")
+    f.add_argument("--vault-root", required=True, dest="vault_root")
+    f.set_defaults(func=cmd_finalize)
+
+    args = ap.parse_args()
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

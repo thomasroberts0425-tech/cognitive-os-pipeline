@@ -197,5 +197,40 @@ class TestCmdPlan(unittest.TestCase):
         self.assertFalse(plan["meta"]["dated"])
 
 
+class TestAssemble(unittest.TestCase):
+    def setUp(self):
+        import tempfile, argparse
+        self.vdir = Path(tempfile.mkdtemp()) / "IRE430"
+        self.sg = self.vdir / "StudyGuide-M07-M07"
+        self.sg.mkdir(parents=True)
+        art = self.sg / "IRE430-M07-M07-M07.md"
+        art.write_text(
+            '---\nai_study_aid: true\n---\n'
+            "## Why-It's-True Prompts\n- Why?\n"
+            "## Flashcards\nBFOR :: a defence\n"
+            "## Practice MCQs\nQ Answer: A Rationale: x Bloom: Apply\n"
+            "## Essay Practice\nPrompt Rubric: pts\n")
+        (self.sg / "_plan.json").write_text(json.dumps({
+            "meta": {"course": "IRE430", "slug": "M07-M07",
+                     "studyguide_dir": str(self.sg)},
+            "briefs": [{"module": "M07", "output_path": str(art)}]}))
+        self.args = argparse.Namespace(plan_json=str(self.sg / "_plan.json"))
+
+    def test_assemble_writes_flashcards_and_quizlet(self):
+        rc = bsg.cmd_assemble(self.args)
+        self.assertEqual(rc, 0)
+        self.assertTrue((self.vdir / "StudyGuide-M07-M07" /
+                         "IRE430-M07-M07-Flashcards-quizlet.txt").exists())
+        vault_cards = (self.vdir / "StudyGuide-M07-M07" /
+                       "IRE430-M07-M07-Flashcards.md").read_text()
+        self.assertIn("BFOR :: a defence", vault_cards)
+
+    def test_assemble_blocks_on_contract_violation(self):
+        art = Path(json.loads(Path(self.args.plan_json).read_text())
+                   ["briefs"][0]["output_path"])
+        art.write_text("## Flashcards\nA :: B\n")  # missing sections + aid flag
+        self.assertEqual(bsg.cmd_assemble(self.args), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
