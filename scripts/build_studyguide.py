@@ -94,3 +94,28 @@ def sources_for_note(note_path: Path, cache_dir: Path):
         if cand.exists():
             found.append(cand)
     return found
+
+
+PASSES = ["Understand", "Retrieve", "Apply"]
+# Day offset from the PREVIOUS session. Expands then plateaus at 7 (2-3-5-7 style).
+GAP_PATTERN = [0, 1, 2, 3, 5, 7]
+
+
+def _gap(i: int) -> int:
+    return GAP_PATTERN[i] if i < len(GAP_PATTERN) else GAP_PATTERN[-1]
+
+
+def build_schedule(modules, per_session: int = 3):
+    """Spaced + interleaved 3-pass schedule. See Interfaces for the contract."""
+    activities = [{"module": m, "pass": p} for p in PASSES for m in modules]
+    sessions = []
+    for idx in range(0, len(activities), per_session):
+        chunk = activities[idx:idx + per_session]
+        ordinal = len(sessions)
+        sessions.append({
+            "ordinal": ordinal + 1,
+            "gap_days": _gap(ordinal),
+            "activities": chunk,
+            "passes": sorted({a["pass"] for a in chunk}),
+        })
+    return sessions

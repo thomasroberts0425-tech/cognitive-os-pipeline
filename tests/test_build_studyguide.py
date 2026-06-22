@@ -59,5 +59,25 @@ class TestSourcesForNote(unittest.TestCase):
         self.assertEqual(bsg.sources_for_note(n, self.cache), [])
 
 
+class TestBuildSchedule(unittest.TestCase):
+    def test_passes_are_phased_and_spaced(self):
+        sessions = bsg.build_schedule(["M07", "M08"], per_session=2)
+        flat = [(a["module"], a["pass"]) for s in sessions for a in s["activities"]]
+        # all Understand come before any Retrieve; all Retrieve before any Apply
+        order = [p for _, p in flat]
+        self.assertEqual(order, ["Understand", "Understand",
+                                 "Retrieve", "Retrieve", "Apply", "Apply"])
+        # each module appears once per pass
+        self.assertEqual(flat.count(("M07", "Understand")), 1)
+        self.assertEqual(flat.count(("M08", "Apply")), 1)
+
+    def test_sessions_grouped_and_gaps_expand(self):
+        sessions = bsg.build_schedule(["M07", "M08", "M09"], per_session=3)
+        self.assertEqual([s["ordinal"] for s in sessions], [1, 2, 3])
+        self.assertEqual(sessions[0]["gap_days"], 0)   # first session: today
+        self.assertTrue(sessions[1]["gap_days"] <= sessions[2]["gap_days"])  # expanding
+        self.assertEqual(len(sessions[0]["activities"]), 3)
+
+
 if __name__ == "__main__":
     unittest.main()
