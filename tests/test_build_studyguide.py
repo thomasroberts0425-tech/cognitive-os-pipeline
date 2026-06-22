@@ -278,6 +278,7 @@ class TestAssemble(unittest.TestCase):
         vault_cards = (self.vdir / "StudyGuide-M07-M07" /
                        "IRE430-M07-M07-Flashcards.md").read_text()
         self.assertIn("BFOR :: a defence", vault_cards)
+        self.assertIn("#flashcards", vault_cards)  # SR plugin scans for this tag
 
     def test_assemble_blocks_on_contract_violation(self):
         art = Path(json.loads(Path(self.args.plan_json).read_text())

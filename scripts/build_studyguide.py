@@ -337,8 +337,13 @@ def cmd_assemble(args) -> int:
     course, slug = meta["course"], meta["slug"]
     vault_md = sg / f"{course}-{slug}-Flashcards.md"
     vault_md.write_text(
-        f"---\ntitle: \"{course} {slug} Flashcards\"\nai_study_aid: true\n---\n\n"
+        f"---\ntitle: \"{course} {slug} Flashcards\"\nai_study_aid: true\n"
+        "tags: [flashcards]\n---\n\n"
         f"# {course} {slug} — Flashcards\n\n"
+        # The #flashcards tag is what the Obsidian Spaced Repetition plugin scans
+        # for; without it the plugin ignores the file. (It does not alter how the
+        # cards render — review happens in the plugin's modal.)
+        "#flashcards\n\n"
         "_One atomic fact per card. `Term :: Definition` doubles as the Obsidian "
         "spaced-repetition format and the Quizlet export source._\n\n"
         + "\n".join(f"{t} :: {d}" for t, d in cards) + "\n", encoding="utf-8")
