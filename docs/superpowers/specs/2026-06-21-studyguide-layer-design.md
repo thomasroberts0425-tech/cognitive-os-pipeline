@@ -56,13 +56,13 @@ Boundaries: the Python helper owns *everything deterministic and filesystem* (se
 
 ## 5. Outputs & File Layout
 
-Under `~/Documents/NEW_COGNITIVE_OS/03_RESOURCES/Academic/<COURSE>/StudyGuide-<range>/`:
+Under `~/Documents/NEW_COGNITIVE_OS/03_RESOURCES/Academic/<COURSE>/StudyGuide-<slug>/` (where `<slug>` = the range, e.g. `M07-M12` or `all`):
 
-- `<COURSE>-<range>-Study-Guide.md` — master: overview, the 3-pass spaced/interleaved schedule (ordinal; dated + crunch if `--exam`), links to all parts. `ai_study_aid: true`.
-- `<COURSE>-<range>-Flashcards.md` — atomic cards in vault (e.g. spaced-repetition `Q::A` or callout format).
-- `<COURSE>-<range>-Flashcards-quizlet.txt` — plain-text Quizlet import (term/definition separator + card separator documented in a header comment).
-- `<COURSE>-<range>-Practice-MCQs.md` — scenario MCQs, Bloom-tagged, with answer key + per-distractor rationale (collapsible).
-- `<COURSE>-<range>-Essay-Practice.md` — per-topic IRAC prompts + issue-spotting checklist + skeleton + rubric.
+- `<COURSE>-<slug>-M<NN>.md` — **one combined artifact per module**, each containing all four sections: `## Why-It's-True Prompts`, `## Flashcards` (atomic `Term :: Definition`), `## Practice MCQs` (scenario stems, Bloom-tagged, answer key + per-distractor rationale in a collapsible callout), and `## Essay Practice` (IRAC prompts + issue-spotting checklist + skeleton + rubric). `ai_study_aid: true`. (MCQs and essay practice live *inside* these per-module files — not separate per-range files — so generation stays per-module-isolated; the assemble gate validates each.)
+- `<COURSE>-<slug>-Flashcards.md` — assembled atomic cards in vault (`Term :: Definition`, also the Obsidian spaced-repetition inline format), parsed from the per-module artifacts.
+- `<COURSE>-<slug>-Flashcards-quizlet.txt` — plain-text Quizlet import (tab between term/definition, newline between cards).
+- `<COURSE>-<slug>-Study-Guide.md` — master (condenser): overview, the 3-pass spaced/interleaved schedule (embeds `_schedule.md`; ordinal, plus dated + crunch if `--exam`), and verified links to every part. `ai_study_aid: true`.
+- `_schedule.md`, `_plan.json` — internal handoff artifacts (schedule markdown; per-module briefs consumed by `assemble`/`finalize`).
 - Insight brief → `~/Documents/NEW_COGNITIVE_OS/01_CAPTURE/Inbox/`.
 
 Wikilinks restricted to files known to exist (per the zero-broken-links constraint); validator is the gate.
