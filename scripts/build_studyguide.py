@@ -154,3 +154,24 @@ def place_dates(sessions, exam: date, today: date) -> bool:
             cur = min(cur + timedelta(days=1 if s["gap_days"] else 0), last_day)
         s["date"] = max(cur, today).isoformat()
     return True
+
+
+def render_schedule_md(sessions, dated: bool, crunch: bool) -> str:
+    lines = ["## Optimal Study Path",
+             "",
+             "_Spaced + interleaved, built on retrieval & distributed practice "
+             "(the only two 'high-utility' techniques). Each session mixes passes/modules._",
+             ""]
+    if crunch:
+        lines += ["> [!warning] Crunch schedule",
+                  "> Not enough runway before the exam — intervals compressed. "
+                  "Prioritise the Retrieve and Apply passes.", ""]
+    header = "| Session | " + ("Date | " if dated else "") + "Focus | Activities |"
+    sep = "|---|" + ("---|" if dated else "") + "---|---|"
+    lines += [header, sep]
+    for s in sessions:
+        acts = "; ".join(f"{a['pass']}: {a['module']}" for a in s["activities"])
+        focus = ", ".join(s["passes"])
+        datecol = f" {s.get('date','')} |" if dated else ""
+        lines.append(f"| {s['ordinal']} |{datecol} {focus} | {acts} |")
+    return "\n".join(lines) + "\n"

@@ -98,5 +98,21 @@ class TestPlaceDates(unittest.TestCase):
             self.assertLessEqual(s["date"], "2026-07-04")
 
 
+class TestRenderSchedule(unittest.TestCase):
+    def test_ordinal_only_has_no_date_column(self):
+        sessions = bsg.build_schedule(["M07", "M08"], per_session=2)
+        md = bsg.render_schedule_md(sessions, dated=False, crunch=False)
+        self.assertIn("## Optimal Study Path", md)
+        self.assertIn("Understand", md)
+        self.assertNotIn("Date", md)
+
+    def test_dated_includes_date_and_crunch_warning(self):
+        sessions = bsg.build_schedule(["M07", "M08"], per_session=2)
+        bsg.place_dates(sessions, exam=date(2026, 7, 3), today=date(2026, 7, 1))
+        md = bsg.render_schedule_md(sessions, dated=True, crunch=True)
+        self.assertIn("Date", md)
+        self.assertIn("crunch", md.lower())
+
+
 if __name__ == "__main__":
     unittest.main()
