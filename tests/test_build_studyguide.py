@@ -1,5 +1,5 @@
 # tests/test_build_studyguide.py
-import sys, unittest
+import json, sys, unittest
 from datetime import date
 from pathlib import Path
 
@@ -164,6 +164,37 @@ class TestCheckArtifacts(unittest.TestCase):
         issues = bsg.check_artifacts([self._write(bad)])
         self.assertTrue(any("ai_study_aid" in i for i in issues))
         self.assertTrue(any("Practice MCQs" in i for i in issues))
+
+
+class TestCmdPlan(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.root = Path(tempfile.mkdtemp())
+        self.vdir = self.root / "vault" / "IRE430"
+        self.vdir.mkdir(parents=True)
+        self.cache = self.root / "staging" / "IRE430" / "_text_cache"
+        self.cache.mkdir(parents=True)
+        (self.cache / "Ch21.txt").write_text("t")
+        (self.vdir / "IRE430-M07-HR.md").write_text(
+            '---\nsource: "Ch21.mp3"\nai_study_aid: true\n---\n')
+        (self.vdir / "IRE430 Syllabus.md").write_text("---\n---\n")
+
+    def _args(self, **kw):
+        import argparse
+        d = dict(course="IRE430", range="M07-M07", vault_dir=str(self.vdir),
+                 staging_root=str(self.root / "staging"), exam=None)
+        d.update(kw)
+        return argparse.Namespace(**d)
+
+    def test_plan_writes_plan_json_and_schedule(self):
+        rc = bsg.cmd_plan(self._args())
+        self.assertEqual(rc, 0)
+        sg = self.vdir / "StudyGuide-M07-M07"
+        plan = json.loads((sg / "_plan.json").read_text())
+        self.assertEqual(len(plan["briefs"]), 1)
+        self.assertTrue(plan["briefs"][0]["cache_sources"])  # Ch21.txt mapped
+        self.assertTrue((sg / "_schedule.md").exists())
+        self.assertFalse(plan["meta"]["dated"])
 
 
 if __name__ == "__main__":

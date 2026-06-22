@@ -232,3 +232,49 @@ def check_artifacts(paths):
         if read_frontmatter(text).get("ai_study_aid") != "true":
             issues.append(f"{name}: missing 'ai_study_aid: true' in frontmatter")
     return issues
+
+
+def range_slug(range_spec: str) -> str:
+    return range_spec
+
+
+def cmd_plan(args) -> int:
+    vault_dir = Path(args.vault_dir)
+    course = args.course
+    slug = range_slug(args.range)
+    notes = resolve_sections(vault_dir, course, args.range)
+    if not notes:
+        print(f"No sections matched {args.range!r} for {course}", file=sys.stderr)
+        return 2
+
+    cache_dir = Path(args.staging_root) / course / "_text_cache"
+    sg_dir = vault_dir / f"StudyGuide-{slug}"
+    sg_dir.mkdir(parents=True, exist_ok=True)
+
+    briefs, modules = [], []
+    for note in notes:
+        mnum = module_num(note.name)
+        mtag = f"M{mnum:02d}" if mnum is not None else note.stem
+        modules.append(mtag)
+        briefs.append({
+            "module": mtag,
+            "note_path": str(note),
+            "output_path": str(sg_dir / f"{course}-{slug}-{mtag}.md"),
+            "cache_sources": [str(c) for c in sources_for_note(note, cache_dir)],
+        })
+
+    sessions = build_schedule(modules)
+    dated = bool(args.exam)
+    crunch = False
+    if dated:
+        exam = date.fromisoformat(args.exam)
+        crunch = place_dates(sessions, exam, date.today())
+    (sg_dir / "_schedule.md").write_text(
+        render_schedule_md(sessions, dated=dated, crunch=crunch), encoding="utf-8")
+
+    plan = {"meta": {"course": course, "range": args.range, "slug": slug,
+                     "studyguide_dir": str(sg_dir), "dated": dated, "crunch": crunch},
+            "briefs": briefs}
+    (sg_dir / "_plan.json").write_text(json.dumps(plan, indent=2), encoding="utf-8")
+    print(json.dumps(plan, indent=2))
+    return 0
