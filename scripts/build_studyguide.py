@@ -211,7 +211,16 @@ def write_quizlet(cards, out_path: Path) -> int:
 
 REQUIRED_SECTIONS = ["## Flashcards", "## Practice MCQs",
                      "## Essay Practice", "## Why-It's-True Prompts"]
-BANNED_ESSAY = ("model answer", "model essay", "sample essay")
+# A per-distractor rationale may be labelled "Rationale:" or "Rationale A:" etc.
+RATIONALE_RE = re.compile(r"rationale\s*[a-d]?\s*:", re.I)
+# Flag a model essay only when a marker is used as a LABEL ("Model Answer:") or a
+# markdown HEADING ("## Sample Essay") — i.e. it actually introduces answer prose.
+# Prose compliance disclaimers ("no model answers", "not a model essay") are NOT
+# model answers and must not trip the gate.
+MODEL_ANSWER_RE = re.compile(
+    r"^#{1,6}\s+.*(?:model answer|model essay|sample essay)"
+    r"|(?:model answer|model essay|sample essay)\s*:",
+    re.I | re.M)
 
 
 def section_body(text: str, heading: str) -> str:
@@ -233,23 +242,23 @@ def check_artifacts(paths) -> list:
     issues = []
     for p in paths:
         text = p.read_text(encoding="utf-8", errors="ignore")
-        low = text.lower()
         name = p.name
         for sec in REQUIRED_SECTIONS:
             if sec not in text:
                 issues.append(f"{name}: missing section {sec}")
         if "## Practice MCQs" in text:
-            mcq_body = section_body(text, "## Practice MCQs").lower()
-            if "rationale:" not in mcq_body:
+            mcq_body = section_body(text, "## Practice MCQs")
+            if not RATIONALE_RE.search(mcq_body):
                 issues.append(f"{name}: MCQs missing 'Rationale:'")
-            if "bloom:" not in mcq_body:
+            if "bloom:" not in mcq_body.lower():
                 issues.append(f"{name}: MCQs missing 'Bloom:' tag")
         if "## Essay Practice" in text and \
                 "rubric:" not in section_body(text, "## Essay Practice").lower():
             issues.append(f"{name}: essay section missing 'Rubric:'")
-        for banned in BANNED_ESSAY:
-            if banned in low:
-                issues.append(f"{name}: contains banned model-essay marker '{banned}'")
+        m = MODEL_ANSWER_RE.search(text)
+        if m:
+            issues.append(f"{name}: contains a model-essay marker in label/heading "
+                          f"form ('{m.group(0).strip()[:40]}')")
         if read_frontmatter(text).get("ai_study_aid") != "true":
             issues.append(f"{name}: missing 'ai_study_aid: true' in frontmatter")
     return issues

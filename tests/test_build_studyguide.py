@@ -165,6 +165,28 @@ class TestCheckArtifacts(unittest.TestCase):
         issues = bsg.check_artifacts([self._write(bad)])
         self.assertTrue(any("model" in i.lower() for i in issues))
 
+    def test_per_distractor_rationale_label_accepted(self):
+        # Real artifacts label rationales per-distractor ("Rationale A:"), not "Rationale:".
+        art = (
+            '---\nai_study_aid: true\n---\n'
+            "## Why-It's-True Prompts\n- Why?\n"
+            "## Flashcards\nA :: B\n"
+            "## Practice MCQs\nScenario... Answer: B\nRationale A: wrong because...\n"
+            "Rationale C: wrong because... Bloom: Apply\n"
+            "## Essay Practice\nPrompt... Rubric: 10 pts\n")
+        self.assertEqual(bsg.check_artifacts([self._write(art)]), [])
+
+    def test_compliance_disclaimer_not_flagged_as_model_essay(self):
+        # A prose disclaimer ("no model answers") must NOT trip the banned-marker gate.
+        art = (
+            '---\nai_study_aid: true\n---\n'
+            "> Outlines and rubrics only — no model answers. Not a model essay.\n"
+            "## Why-It's-True Prompts\n- Why?\n"
+            "## Flashcards\nA :: B\n"
+            "## Practice MCQs\nScenario... Answer: B Rationale A: ... Bloom: Apply\n"
+            "## Essay Practice\nPrompt... Rubric: 10 pts\n")
+        self.assertEqual(bsg.check_artifacts([self._write(art)]), [])
+
     def test_missing_section_and_aid_flag_flagged(self):
         bad = "## Flashcards\nA :: B\n"  # no frontmatter, missing sections
         issues = bsg.check_artifacts([self._write(bad)])
