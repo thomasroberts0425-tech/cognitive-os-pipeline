@@ -36,5 +36,28 @@ class TestResolveSections(unittest.TestCase):
             bsg.resolve_sections(self.tmp, "IRE430", "chapter7")
 
 
+class TestSourcesForNote(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp())
+        self.cache = self.tmp / "_text_cache"
+        self.cache.mkdir()
+        (self.cache / "Ch21 Intro.txt").write_text("transcript")
+        (self.cache / "Ch22 Grounds.txt").write_text("transcript")
+        self.note = self.tmp / "IRE430-M07-Human-Rights.md"
+        self.note.write_text(
+            '---\ntitle: "x"\nsource: "Ch21 Intro.mp3; Ch22 Grounds.mp3"\n'
+            "ai_study_aid: true\n---\n# body\n")
+
+    def test_maps_source_filenames_to_existing_cache_txt(self):
+        got = sorted(p.name for p in bsg.sources_for_note(self.note, self.cache))
+        self.assertEqual(got, ["Ch21 Intro.txt", "Ch22 Grounds.txt"])
+
+    def test_missing_cache_returns_empty(self):
+        n = self.tmp / "IRE430-M99-Ghost.md"
+        n.write_text('---\nsource: "Nope.pdf"\n---\n')
+        self.assertEqual(bsg.sources_for_note(n, self.cache), [])
+
+
 if __name__ == "__main__":
     unittest.main()

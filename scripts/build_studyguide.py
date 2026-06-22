@@ -63,3 +63,34 @@ def resolve_sections(vault_dir: Path, course: str, range_spec: str):
         return [p for p in candidates if module_num(p.name) == target]
 
     raise ValueError(f"Bad range spec: {range_spec!r} (use 'all', 'M07-M12', or 'M08')")
+
+
+FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
+
+
+def read_frontmatter(text: str) -> dict:
+    """Minimal `key: value` frontmatter parser (NOT full YAML). Strips quotes."""
+    out = {}
+    m = FRONTMATTER_RE.match(text)
+    if not m:
+        return out
+    for line in m.group(1).splitlines():
+        if ":" in line and not line.lstrip().startswith("-"):
+            key, _, val = line.partition(":")
+            out[key.strip()] = val.strip().strip('"').strip("'")
+    return out
+
+
+def sources_for_note(note_path: Path, cache_dir: Path):
+    """Map a note's `source:` frontmatter to existing cache .txt files."""
+    fm = read_frontmatter(note_path.read_text(encoding="utf-8", errors="ignore"))
+    raw = fm.get("source", "")
+    found = []
+    for piece in re.split(r"[;,]", raw):
+        stem = Path(piece.strip()).stem
+        if not stem:
+            continue
+        cand = cache_dir / f"{stem}.txt"
+        if cand.exists():
+            found.append(cand)
+    return found
