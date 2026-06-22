@@ -137,5 +137,34 @@ class TestFlashcards(unittest.TestCase):
         self.assertEqual(content.strip(), "A B\tline1 line2")
 
 
+class TestCheckArtifacts(unittest.TestCase):
+    GOOD = (
+        '---\nai_study_aid: true\n---\n'
+        "## Why-It's-True Prompts\n- Why?\n"
+        "## Flashcards\nA :: B\n"
+        "## Practice MCQs\nQ... Answer: C. Rationale: ... Bloom: Apply\n"
+        "## Essay Practice\nPrompt... Rubric: 10 pts issues...\n")
+
+    def _write(self, text):
+        import tempfile
+        p = Path(tempfile.mkdtemp()) / "IRE430-M07-M12-M07.md"
+        p.write_text(text)
+        return p
+
+    def test_clean_artifact_has_no_issues(self):
+        self.assertEqual(bsg.check_artifacts([self._write(self.GOOD)]), [])
+
+    def test_model_essay_is_flagged(self):
+        bad = self.GOOD + "\n## Essay Practice\nModel Answer: In conclusion the worker...\n"
+        issues = bsg.check_artifacts([self._write(bad)])
+        self.assertTrue(any("model" in i.lower() for i in issues))
+
+    def test_missing_section_and_aid_flag_flagged(self):
+        bad = "## Flashcards\nA :: B\n"  # no frontmatter, missing sections
+        issues = bsg.check_artifacts([self._write(bad)])
+        self.assertTrue(any("ai_study_aid" in i for i in issues))
+        self.assertTrue(any("Practice MCQs" in i for i in issues))
+
+
 if __name__ == "__main__":
     unittest.main()

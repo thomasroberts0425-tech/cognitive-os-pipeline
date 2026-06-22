@@ -202,3 +202,33 @@ def write_quizlet(cards, out_path: Path) -> int:
     rows = [f"{_clean(t)}\t{_clean(d)}" for t, d in cards]
     out_path.write_text("\n".join(rows) + ("\n" if rows else ""), encoding="utf-8")
     return len(cards)
+
+
+REQUIRED_SECTIONS = ["## Flashcards", "## Practice MCQs",
+                     "## Essay Practice", "## Why-It's-True Prompts"]
+BANNED_ESSAY = ("model answer", "model essay", "sample essay")
+
+
+def check_artifacts(paths):
+    """Validate per-module artifacts against the contract. Returns issue strings."""
+    issues = []
+    for p in paths:
+        text = p.read_text(encoding="utf-8", errors="ignore")
+        low = text.lower()
+        name = p.name
+        for sec in REQUIRED_SECTIONS:
+            if sec not in text:
+                issues.append(f"{name}: missing section {sec}")
+        if "## Practice MCQs" in text:
+            if "rationale:" not in low:
+                issues.append(f"{name}: MCQs missing 'Rationale:'")
+            if "bloom:" not in low:
+                issues.append(f"{name}: MCQs missing 'Bloom:' tag")
+        if "## Essay Practice" in text and "rubric:" not in low:
+            issues.append(f"{name}: essay section missing 'Rubric:'")
+        for banned in BANNED_ESSAY:
+            if banned in low:
+                issues.append(f"{name}: contains banned model-essay marker '{banned}'")
+        if read_frontmatter(text).get("ai_study_aid") != "true":
+            issues.append(f"{name}: missing 'ai_study_aid: true' in frontmatter")
+    return issues
