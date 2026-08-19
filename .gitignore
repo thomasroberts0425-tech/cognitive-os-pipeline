@@ -10,6 +10,3 @@ cache/
 # Python
 __pycache__/
 *.pyc
-
-# SDD scratch (subagent-driven-development ledger/briefs)
-.superpowers/
