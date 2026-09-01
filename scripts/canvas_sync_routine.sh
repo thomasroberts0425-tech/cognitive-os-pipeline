@@ -69,6 +69,13 @@ if [[ "$NOW_MIN" -ge "$QUIET_START" || "$NOW_MIN" -lt "$QUIET_END" ]]; then
   exit 0
 fi
 
+# common.sh supplies with_timeout/acquire_lock. It is sourced with `|| true`, so if it ever
+# moves or breaks, define the fallback rather than letting an undefined command read as a
+# synthesis failure — that would burn all 5 retries against a problem that is not the course's.
+if ! command -v with_timeout &>/dev/null; then
+  with_timeout() { local secs="$1"; shift; perl -e "alarm $secs; exec @ARGV" "$@"; }
+fi
+
 command -v acquire_lock &>/dev/null && acquire_lock
 
 # ── Staging scan ─────────────────────────────────────────────────────────────
