@@ -10,3 +10,8 @@ cache/
 # Python
 __pycache__/
 *.pyc
+
+# Internal handoff/design doc — kept locally, deliberately not in the repo.
+# Removed from the public remote 2026-09-02: it carried course codes, a Quercus
+# course id and an instructor name that the README and code never needed.
+HANDOFF.md
